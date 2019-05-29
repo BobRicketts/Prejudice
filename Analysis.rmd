@@ -1,0 +1,305 @@
+---
+title: "Analysis"
+---
+
+```{r libraries & functions}
+library(tidyverse) #used for plotting (ggplot2)
+unsigmoid <- function(CR) { return( 1/ (1+0.05^CR) ) } #function for turning CR-values into actual cooperation rates
+```
+
+```{r group sizes}
+groups_names <- list.files(pattern = "groupSizeDF.csv$") #make list of df-names
+groups_df <- do.call(bind_rows, c(lapply(groups_names,read.csv), .id = "group_ratio")) #read and bind dfs into one large df
+groups_df_long <- gather(groups_df, bias, cr, own:out) #turn df into long-format
+groups_df_long$group <- ifelse(groups_df_long$bias == "own", "Ingroup", "Outgroup") #rename values for plotting
+
+groupID_labels <- as_labeller(c( #create labeller-function for the two groups
+  '1'="Minority group",
+  '2'="Majority group"
+))
+
+ratio_labels <- as_labeller(c( #create labeller-function for group ratios
+  '1'="Group ratio = 1:1",
+  '2'="Group ratio = 1:2",
+  '3'="Group ratio = 1:8"
+))
+ 
+groups_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = group)) + #plot CRs across group ratios for both groups
+    geom_point(shape = 1, size = 0.01, alpha = 0.15) + 
+    facet_grid(groupID~group_ratio,labeller=labeller(.default = groupID_labels, group_ratio = ratio_labels)) +
+    xlab("Step no.") +
+    ylab("Cooperation rate") +
+    labs(colour = "Group") +
+    scale_color_manual(values=c("red", "blue")) +
+    guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
+    theme_bw()
+```
+
+
+```{r variable changes, message = FALSE, warning = FALSE}
+variables_df1 <- read.csv("meta1.csv") #read data
+variables_df1 <- variables_df1 %>% mutate( #make three dimensions into factors
+    mu = as.factor(mu),
+    sigma = as.factor(sigma),
+    prejudice = as.factor(prejudice))
+variables_df1$Group <- sample(c("Ingroup", "Outgroup"), nrow(variables_df1),  replace = TRUE) #creates a plot-dummy for legends
+variables_df1$dummy <- 2
+
+mu_labels <- list( #create list of labels labeller-function for means
+  '0.1'=expression(mu ~ " = 0.1"),
+  '0.3'=expression(mu ~ " = 0.3"),
+  '0.5'=expression(mu ~ " = 0.5"),
+  '0.7'=expression(mu ~ " = 0.7"),
+  '0.9'=expression(mu ~ " = 0.9")
+)
+
+sigma_labels <- list( #create list of labels for standard deviations
+  '0.01'=expression(sigma ~ " = 0.01"),
+  '0.05'=expression(sigma ~ " = 0.05"),
+  '0.1'=expression(sigma ~ " = 0.1"),
+  '0.2'=expression(sigma ~ " = 0.2"),
+  '0.4'=expression(sigma ~ " = 0.4")
+)
+
+plot_labeller <- function(variable,value){ #create labeller-function for grids
+  if (variable=='mu') {
+    return(mu_labels[value])
+  } else {
+    return(sigma_labels[value])
+  }
+}
+
+variables_df1 %>% ggplot(aes(x = step, colour = prejudice)) + #plot the CRs across steps and three dimensions
+    geom_smooth(se = FALSE, aes(y = own), method = "lm", size = 0.65, linetype = "solid") +
+    geom_smooth(se = FALSE, aes(y = out), method = "lm", size = 0.65, linetype = "dashed") +
+    facet_grid(mu~sigma, labeller=plot_labeller) +
+    xlab("Step no.") +
+    ylab("Mean cooperation rate")  +
+    labs(colour="Prejudice") +
+    geom_line(aes(y = dummy, linetype = Group)) + #for legend-purposes
+    scale_linetype_manual(values = c('solid', 'dashed')) + #for legend-purposes
+    guides(linetype = guide_legend(order = 1), colour = guide_legend(order = 2)) +
+    scale_x_continuous(breaks=c(0, 10000), labels=c("0", "10k")) +
+    ylim(0, 1) +
+    theme(panel.grid.minor.x = element_blank()) +
+    theme_bw()
+```
+
+```{r calculate robustness measures for hypothesis 1}
+robustness_names1 <- list.files(pattern = "metaData.csv$") #make list of df-names
+robustness_df <- do.call(bind_rows, c(lapply(robustness_names1,read.csv))) #read and bind dfs into one large df
+
+endOwnSD_df <- robustness_df %>% group_by(mu, sigma, prejudice) %>% summarise_all(funs(sd(endOwnMu)))
+mean(endOwnSD_df$X)
+sd(endOwnSD_df$X)
+quantile(endOwnSD_df$X,probs=c(0,1))
+
+endOutSD_df <- robustness_df %>% group_by(mu, sigma, prejudice) %>% summarise_all(funs(sd(endOutMu))) 
+mean(endOutSD_df$X)
+sd(endOutSD_df$X)
+quantile(endOutSD_df$X,probs=c(0,1))
+
+high_uncertain_df <- robustness_df %>% filter(mu == 0.5 & sigma == 0.20 & prejudice == 0.00)
+quantile(high_uncertain_df$endOwnMu,probs=c(0,1))
+
+low_uncertain_df <- robustness_df %>% filter(mu == 0.9 & sigma == 0.05 & prejudice == 0.40)
+quantile(low_uncertain_df$endOwnMu,probs=c(0,1))
+```
+
+
+```{r including third group, message = FALSE, warning = FALSE}
+third_data <- read.csv("meta3.csv") #read data
+third_data <- third_data %>% mutate( #make three dimensions into factors
+    TL = as.factor(TL),
+    TGS = as.factor(TGS),
+    prejudice = as.factor(prejudice))
+third_data$Group <- sample(c("Ingroup", "Outgroup"), nrow(third_data),  replace = TRUE) #creates a plot-dummy for legends
+    
+
+TL_labels <- list( #create list of labels labeller-function for 'third-likeness'
+  '0.5'= 'TL = 0.5',
+  '0.6'= 'TL = 0.6',
+  '0.7'= 'TL = 0.7',
+  '0.8'= 'TL = 0.8',
+  '0.9'= 'TL 0.9'
+)
+
+TGS_labels <- list( #create list of labels labeller-function for size of third group
+  '0.2'= 'TGS = 0.2',
+  '0.35'= 'TGS = 0.35',
+  '0.5'= 'TGS = 0.5',
+  '0.65'= 'TGS = 0.65',
+  '0.8'= 'TGS = 0.8'
+)
+
+third_labeller <- function(variable,value){ #create labeller-function for grids
+  if (variable=='TL') {
+    return(TL_labels[value])
+  } else {
+    return(TGS_labels[value])
+  }
+}
+
+third_data %>% ggplot(aes(x = step, colour = prejudice)) + #plot the CRs across steps, prejudices, TLs, and TGs
+    geom_smooth(se = FALSE, aes(y = own), method = "lm", size = 0.65, linetype = "solid") +
+    geom_smooth(se = FALSE, aes(y = out), method = "lm", size = 0.65, linetype = "dashed") +
+    facet_grid(TL~TGS, labeller=third_labeller) +
+    xlab("Step no.") +
+    ylab("Mean cooperation rate")  +
+    labs(colour="Prejudice") +
+    geom_line(aes(y = X, linetype = Group)) + #for legend-purposes
+    scale_linetype_manual(values = c('solid', 'dashed')) + #for legend-purposes
+    guides(linetype = guide_legend(order = 1), colour = guide_legend(order = 2)) +
+    scale_x_continuous(breaks=c(0, 10000), labels=c("0", "10k")) +
+    ylim(0, 1) +
+    theme(panel.grid.minor.x = element_blank()) +
+    theme_bw()
+```
+
+```{r zooming in on third group with 10,000 steps}
+third_names <- list.files(pattern = "ThirdCondDFNew.csv$") #make list of df-names
+third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
+third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
+third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
+third_df_long$groups <- plyr::revalue(third_df_long$groups, c("own.0"="Ingroup", "own.1"=paste("G3 \U2192 Ingroup"), "out.0" ="Outgroup", "out.1" =paste("G3 \U2192 Outgroup"))) #rename interaction groups
+
+TL_labels <- as_labeller(c( #create labeller-function for the 'third-likeness'
+  '0.5'= 'TL = 0.5',
+  '0.7'= 'TL = 0.7',
+  '0.9'= 'TL 0.9'
+))
+
+TGS_labels <- as_labeller(c( #create labeller-function for size of third group
+  '0.2'= 'TGS = 0.2',
+  '0.5'= 'TGS = 0.5',
+  '0.8'= 'TGS = 0.8'
+))
+
+third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #plot the CRs across steps, prejudices, TLs, and TGs
+    geom_point(shape = 1, size = 0.01, alpha = 0.05) + 
+    facet_grid(TL~TG,labeller=labeller(TL = TL_labels, TG = TGS_labels)) +
+    xlab("Step no.") +
+    ylab("Cooperation rate") +
+    labs(colour = "Group") +
+    scale_color_manual(values=c("red", "blue", "yellow", "green")) +
+    guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
+    theme_bw()
+```
+
+```{r zooming in on third group with 25,000 steps}
+third_names <- list.files(pattern = "thirds.csv$") #make list of df-names
+third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
+third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
+third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
+third_df_long$groups <- plyr::revalue(third_df_long$groups, c("own.0"="Ingroup", "own.1"=paste("G3 \U2192 Ingroup"), "out.0" ="Outgroup", "out.1" =paste("G3 \U2192 Outgroup"))) #rename interaction groups
+
+TL_labels <- as_labeller(c( #create labeller-function for the 'third-likeness'
+  '0.5'= 'TL = 0.5',
+  '0.7'= 'TL = 0.7',
+  '0.9'= 'TL 0.9'
+))
+
+TGS_labels <- as_labeller(c( #create labeller-function for size of third group
+  '0.2'= 'TGS = 0.2',
+  '0.5'= 'TGS = 0.5',
+  '0.8'= 'TGS = 0.8'
+))
+
+third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #plot the CRs across steps, prejudices, TLs, and TGs
+    geom_point(shape = 1, size = 0.01, alpha = 0.05) + 
+    facet_grid(TL~TG,labeller=labeller(TL = TL_labels, TG = TGS_labels)) +
+    xlab("Step no.") +
+    ylab("Cooperation rate") +
+    labs(colour = "Group") +
+    scale_color_manual(values=c("red", "blue", "yellow", "green")) +
+    guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
+    theme_bw()
+```
+
+```{r r calculate robustness measures for hypothesis 2}
+robustness_names2 <- list.files(pattern = "metaDataThird.csv$") #make list of df-names
+robustness_df <- do.call(bind_rows, c(lapply(robustness_names2,read.csv))) #read and bind dfs into one large df
+
+endOwnSD_df <- robustness_df %>% group_by(TL, TGS, prejudice) %>% summarise_all(funs(sd(endOwnMu)))
+mean(endOwnSD_df$X)
+sd(endOwnSD_df$X)
+quantile(endOwnSD_df$X,probs=c(0,1))
+
+endOutSD_df <- robustness_df %>% group_by(TL, TGS, prejudice) %>% summarise_all(funs(sd(endOutMu))) 
+mean(endOutSD_df$X)
+sd(endOutSD_df$X)
+quantile(endOutSD_df$X,probs=c(0,1))
+```
+
+```{r third condition with personalized interactions}
+interaction_names <- list.files(pattern = "int_plot.csv$") #make list of df-names
+interaction_df <- do.call(bind_rows, c(lapply(interaction_names,read.csv), .id = "nInteractions")) #read and bind dfs into one large df
+interaction_df <- interaction_df %>% filter(step < 20000)
+interaction_df_long <- gather(interaction_df, bias, cr, own:out) #turn df into long-format
+interaction_df_long$group <- ifelse(interaction_df_long$bias == "own", "Ingroup", "Outgroup") #rename values for plotting
+interaction_df_long$unsig_cr <- unsigmoid(interaction_df_long$cr)
+
+interaction_labels <- as_labeller(c( #create labeller-function for the three simulations
+  '1'="10 interactions",
+  '2'="100 interactions",
+  '3'="500 interactions"
+))
+
+interaction_df_long %>% ggplot(aes(x = step, y = unsig_cr, colour = group)) + #plot interactions 
+    geom_point(shape = 1, size = 0.01, alpha = 0.15) + 
+    facet_grid(~nInteractions,labeller=labeller(.default = interaction_labels)) +
+    xlab("Step no.") +
+    ylab("Cooperation rate") +
+    labs(colour = "Group") +
+    scale_color_manual(values=c("red", "blue")) +
+    guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
+    theme_bw()
+```
+
+```{r variable changes 2, message = FALSE, warning = FALSE}
+variables_df2 <- read.csv("meta2.csv") #read data
+variables_df2 <- variables_df2 %>% mutate( #make three dimensions into factors
+    mu = as.factor(mu),
+    sigma = as.factor(sigma),
+    prejudice = as.factor(prejudice))
+variables_df2$Group <- sample(c("Ingroup", "Outgroup"), nrow(variables_df2),  replace = TRUE) #creates a plot-dummy for legends
+    
+mu_names <- list( #create list of labels labeller-function for means
+  '0.40'=expression(mu ~ " = 0.40"),
+  '0.45'=expression(mu ~ " = 0.45"),
+  '0.5'=expression(mu ~ " = 0.5"),
+  '0.55'=expression(mu ~ " = 0.55"),
+  '0.60'=expression(mu ~ " = 0.60")
+)
+
+sigma_names <- list( #create list of labels for standard deviations
+  '0.01'=expression(sigma ~ " = 0.01"),
+  '0.05'=expression(sigma ~ " = 0.05"),
+  '0.1'=expression(sigma ~ " = 0.1"),
+  '0.2'=expression(sigma ~ " = 0.2"),
+  '0.4'=expression(sigma ~ " = 0.4")
+)
+
+plot_labeller <- function(variable,value){ #create labeller-function for grids
+  if (variable=='mu') {
+    return(mu_names[value])
+  } else {
+    return(sigma_names[value])
+  }
+}
+
+variables_df2 %>% ggplot(aes(x = step, colour = prejudice)) + #plot the CRs across steps and three dimensions
+    geom_smooth(se = FALSE, aes(y = unsigmoid(own)), method = "lm", size = 0.65, linetype = "solid") +
+    geom_smooth(se = FALSE, aes(y = unsigmoid(out)), method = "lm", size = 0.65, linetype = "dashed") +
+    facet_grid(mu~sigma, labeller=plot_labeller) +
+    xlab("Step no.") +
+    ylab("Mean cooperation rate")  +
+    labs(colour="Prejudice") +
+    geom_line(aes(y = X, linetype = Group)) + #for legend-purposes
+    scale_linetype_manual(values = c('solid', 'dashed')) + #for legend-purposes
+    guides(linetype = guide_legend(order = 1), colour = guide_legend(order = 2)) +
+    scale_x_continuous(breaks=c(0, 10000), labels=c("0", "10k")) +
+    ylim(0, 1) +
+    theme(panel.grid.minor.x = element_blank()) +
+    theme_bw()
+```

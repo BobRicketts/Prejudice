@@ -1,0 +1,127 @@
+---
+  title: "prejudiceV2"
+---
+  
+```{r functions}
+# Functions used for the simulation
+
+# Convert CR between the sigmoid scale and the linear scale. 
+unsigmoid <- function(CR) { return( 1/ (1+0.05^CR) ) }
+sigmoid <- function(CR) { return( log(-(CR/(CR-1))) / (2*log(2)+log(5)) )}
+
+# Function to setup the the dataframe that contains the agents. 
+setupDF <- function() {
+  fullDF <- as.data.frame(matrix(nrow = na*dataPoints + na, ncol = 7))
+  colnames(fullDF) <- c("ID", "groupID", "thirdID", "own", "out", "third", "step")
+  
+  fullDF$ID[1:na] <- 1:na
+  
+  fullDF$groupID[1:gs[1]] <- 1
+  fullDF$groupID[(gs[1]+1):na] <- 2
+  
+  # Bridge condition referes to the second hypothesis, where a third group "bridges" the two groups.
+  # If true, it will assign IDs of the thirds group.
+  if (bridgeCondition) {
+    fullDF$thirdID[1:gs[1]] <- rbinom(gs[1], 1, thirds)
+    fullDF$thirdID[(gs[1]+1):na] <- rbinom(gs[2], 1, thirds)
+  } else { fullDF$thirdID[1:na] <- 0}
+  
+  # Calculating the CR of the ingroup and the outgroup. We have capped the values on the linear scale to 2.5 and -2.5, which rougly refers to 100% and 0% CR on the sigmoid. The prejudice is added here as well. 
+  ownTemp <- rnorm(na, mean = mu+prejudice, sd = sd)
+  fullDF$own[1:na] <- ifelse(ownTemp <= 0, -2.5,ifelse(ownTemp >= 1, 2.5, sigmoid(ownTemp)))
+  outTemp <- rnorm(na, mean = mu-prejudice, sd = sd)
+  fullDF$out[1:na] <- ifelse(outTemp <= 0, -2.5,ifelse(outTemp >= 1, 2.5, sigmoid(outTemp)))
+  # Doing the same for the third group. 
+  thirdTemp <- rnorm(na, mean = TL-prejudice, sd = sd) + prejudice*fullDF$thirdID[1:na]*2
+  fullDF$third[1:na] <- ifelse(thirdTemp <= 0, -2.5,ifelse(thirdTemp >= 1, 2.5, sigmoid(thirdTemp)))
+  
+  fullDF$step[1:na] <- 0
+  
+  return(fullDF)
+}
+
+# The function that runs one whole simulation
+simulation <- function() {
+  
+  # Setting up the data frame. 
+  fullDF <- setupDF()
+  
+  # Creating a temporary DF to store the newest values of the agents in. 
+  tempDF <- fullDF[1:na,]
+  
+  # Loop for each step 
+  for (step in 1:steps) {
+    tempDF$step <- step
+    
+    # Making a shuffled version of the tempDF to parnter up the agents. 
+    partnerDF <- tempDF[sample(nrow(tempDF), nrow(tempDF)), ]
+    
+    # If in the condition with repeated interaction, run this code. It does the same as the snippet below (in the else statement), but with added repeated interactions. 
+    if (personalCondition) {
+      agentsCR <- ( partnerDF$groupID == tempDF$groupID ) * tempDF$own + 
+                    ( partnerDF$groupID != tempDF$groupID ) * tempDF$out  # Make a vector with the agents’ CR 
+      
+      partnerCR <- ( partnerDF$groupID == tempDF$groupID ) * partnerDF$own +
+                    ( partnerDF$groupID != tempDF$groupID ) * partnerDF$out # Make a vector with the partner agents’ CR
+      
+      for (inter in 1:interactions) { # This loop runs through the interactions and update each agent’s and their partner’s CR based on their experience. 
+        agentsCR  <- agentsCR + ((unsigmoid(partnerCR) > runif(na)) *2 - 1) * llr
+        partnerCR <- partnerCR + ((unsigmoid(agentsCR) > runif(na)) *2 - 1) * llr
+      }
+      
+      partnerCoop <- ( as.numeric( agentsCR > ( partnerDF$groupID == tempDF$groupID ) * tempDF$own +
+                     ( partnerDF$groupID != tempDF$groupID ) * tempDF$out) * 2 - 1) # This is the ultimate vector with either 1 or -1, that updates the CR scores. 
+      
+    } else {
+      # This code snippet does multiple things to avoid storing too many temporary variables. 
+      # It checks if the partners coop, assigns either 1 or -1, then storing the appropriate one in a vector, given the partnered up agents. 
+      partnerCoop <- as.integer(
+          unsigmoid((
+        ( partnerDF$groupID == tempDF$groupID ) * partnerDF$own + # CR for own group
+          ( partnerDF$groupID != tempDF$groupID ) * partnerDF$out + # CR for out group
+          ( tempDF$thirdID == 1 ) * partnerDF$third  # CR for third group
+        ) / ( 1+ as.numeric( tempDF$thirdID == 1 ))) # Dividing by the number of CR's used (mean)
+          > runif( na ) ) * 2 - 1 # Rolling dice and assigning -1 or 1. 
+    }
+    
+    # This updates the CR for the agents in tempDF by multiplying it by the vector of 1's and -1's which correspond to coop or defect. 
+    tempDF$own <- tempDF$own + partnerCoop * as.numeric( tempDF$groupID == partnerDF$groupID ) * lr
+    tempDF$out <- tempDF$out + partnerCoop * as.numeric( tempDF$groupID != partnerDF$groupID ) * lr
+    if (bridgeCondition) {tempDF$third <- tempDF$third + partnerCoop * as.numeric( partnerDF$thirdID == 1 ) * lr}
+    
+    # Putting the tempDF in a big dataframe, given the downsizing factor. 
+    if (step %% downsizing == 0) {fullDF[(na*step/downsizing+1):(na*step/ downsizing+na),] <- tempDF}
+    
+    # Printing progress
+    if (step %% (steps/1000) == 0) {print(paste(step/steps*1000,"%", sep = ""))}
+  }
+  return(fullDF)
+}
+```
+
+```{r}
+
+# Variables to change in the model
+
+gs = c(500,500) # group size of the groups
+na = sum(gs)    # Sum of agents 
+bridgeCondition = FALSE    # The condition important to hypothesis 2. Creates a third group and a CR towards them 
+personalCondition = FALSE  # The condition important to hypothesis 3. Makes 
+
+thirds = 0.5
+
+mu = 0.5
+sd = 0.2
+prejudice = 0.1
+TL = 0.5
+
+steps = 10000 # 10 000
+lr = 4/steps
+dataPoints = 100
+downsizing = steps / dataPoints
+interactions = 100 #the number of interactions per step for the third condition
+llr = 4/interactions
+```
+
+
+
