@@ -30,7 +30,7 @@ groups_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = group)) + #p
     xlab("Step no.") +
     ylab("Cooperation rate") +
     labs(colour = "Group") +
-    scale_color_manual(values=c("red", "blue")) +
+    scale_color_manual(values=c("blue", "red")) +
     guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
     theme_bw()
 ```
@@ -161,6 +161,7 @@ third_names <- list.files(pattern = "ThirdCondDFNew.csv$") #make list of df-name
 third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
 third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
 third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
+third_df_long$groups <- factor(third_df_long$groups, levels = c("own.0", "own.1", "out.0", "out.1"))
 third_df_long$groups <- plyr::revalue(third_df_long$groups, c("own.0"="Ingroup", "own.1"=paste("G3 \U2192 Ingroup"), "out.0" ="Outgroup", "out.1" =paste("G3 \U2192 Outgroup"))) #rename interaction groups
 
 TL_labels <- as_labeller(c( #create labeller-function for the 'third-likeness'
@@ -181,7 +182,7 @@ third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #p
     xlab("Step no.") +
     ylab("Cooperation rate") +
     labs(colour = "Group") +
-    scale_color_manual(values=c("red", "blue", "yellow", "green")) +
+    scale_color_manual(values=c("blue", "green", "red", "yellow")) +
     guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
     theme_bw()
 ```
@@ -191,7 +192,9 @@ third_names <- list.files(pattern = "thirds.csv$") #make list of df-names
 third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
 third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
 third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
+third_df_long$groups <- factor(third_df_long$groups, levels = c("own.0", "own.1", "out.0", "out.1"))
 third_df_long$groups <- plyr::revalue(third_df_long$groups, c("own.0"="Ingroup", "own.1"=paste("G3 \U2192 Ingroup"), "out.0" ="Outgroup", "out.1" =paste("G3 \U2192 Outgroup"))) #rename interaction groups
+
 
 TL_labels <- as_labeller(c( #create labeller-function for the 'third-likeness'
   '0.5'= 'TL = 0.5',
@@ -211,7 +214,7 @@ third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #p
     xlab("Step no.") +
     ylab("Cooperation rate") +
     labs(colour = "Group") +
-    scale_color_manual(values=c("red", "blue", "yellow", "green")) +
+    scale_color_manual(values=c("blue", "green", "red", "yellow")) +
     guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
     theme_bw()
 ```
@@ -251,7 +254,7 @@ interaction_df_long %>% ggplot(aes(x = step, y = unsig_cr, colour = group)) + #p
     xlab("Step no.") +
     ylab("Cooperation rate") +
     labs(colour = "Group") +
-    scale_color_manual(values=c("red", "blue")) +
+    scale_color_manual(values=c("blue", "red")) +
     guides(colour = guide_legend(override.aes = list(shape = 16, alpha = 1, size = 3))) +
     theme_bw()
 ```
