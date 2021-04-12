@@ -8,7 +8,7 @@ unsigmoid <- function(CR) { return( 1/ (1+0.05^CR) ) } #function for turning CR-
 ```
 
 ```{r group sizes}
-groups_names <- list.files(pattern = "groupSizeDF.csv$") #make list of df-names
+groups_names <- list.files(path = "SimulationData", pattern = "groupSizeDF.csv$") #make list of df-names
 groups_df <- do.call(bind_rows, c(lapply(groups_names,read.csv), .id = "group_ratio")) #read and bind dfs into one large df
 groups_df_long <- gather(groups_df, bias, cr, own:out) #turn df into long-format
 groups_df_long$group <- ifelse(groups_df_long$bias == "own", "Ingroup", "Outgroup") #rename values for plotting
@@ -37,7 +37,7 @@ groups_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = group)) + #p
 
 
 ```{r variable changes, message = FALSE, warning = FALSE}
-variables_df1 <- read.csv("meta1.csv") #read data
+variables_df1 <- read.csv("SimulationData/meta1.csv") #read data
 variables_df1 <- variables_df1 %>% mutate( #make three dimensions into factors
     mu = as.factor(mu),
     sigma = as.factor(sigma),
@@ -86,7 +86,7 @@ variables_df1 %>% ggplot(aes(x = step, colour = prejudice)) + #plot the CRs acro
 ```
 
 ```{r calculate robustness measures for hypothesis 1}
-robustness_names1 <- list.files(pattern = "metaData.csv$") #make list of df-names
+robustness_names1 <- list.files(path = "SimulationData", pattern = "metaData.csv$") #make list of df-names
 robustness_df <- do.call(bind_rows, c(lapply(robustness_names1,read.csv))) #read and bind dfs into one large df
 
 endOwnSD_df <- robustness_df %>% group_by(mu, sigma, prejudice) %>% summarise_all(funs(sd(endOwnMu)))
@@ -108,7 +108,7 @@ quantile(low_uncertain_df$endOwnMu,probs=c(0,1))
 
 
 ```{r including third group, message = FALSE, warning = FALSE}
-third_data <- read.csv("meta3.csv") #read data
+third_data <- read.csv("SimulationData/meta3.csv") #read data
 third_data <- third_data %>% mutate( #make three dimensions into factors
     TL = as.factor(TL),
     TGS = as.factor(TGS),
@@ -157,7 +157,7 @@ third_data %>% ggplot(aes(x = step, colour = prejudice)) + #plot the CRs across 
 ```
 
 ```{r zooming in on third group with 10,000 steps}
-third_names <- list.files(pattern = "ThirdCondDFNew.csv$") #make list of df-names
+third_names <- list.files(path = "SimulationData", pattern = "ThirdCondDFNew.csv$") #make list of df-names
 third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
 third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
 third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
@@ -188,7 +188,7 @@ third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #p
 ```
 
 ```{r zooming in on third group with 25,000 steps}
-third_names <- list.files(pattern = "thirds.csv$") #make list of df-names
+third_names <- list.files(path = "SimulationData", pattern = "thirds.csv$") #make list of df-names
 third_df <- do.call(bind_rows, c(lapply(third_names,read.csv))) #read and bind dfs into one large df
 third_df_long <- gather(third_df, bias, cr, own:out) #turn df into long-format
 third_df_long$groups <- with(third_df_long, interaction(bias, thirdID)) #create interaction groups with four levels
@@ -220,7 +220,7 @@ third_df_long %>% ggplot(aes(x = step, y = unsigmoid(cr), colour = groups)) + #p
 ```
 
 ```{r r calculate robustness measures for hypothesis 2}
-robustness_names2 <- list.files(pattern = "metaDataThird.csv$") #make list of df-names
+robustness_names2 <- list.files(path = "SimulationData", pattern = "metaDataThird.csv$") #make list of df-names
 robustness_df <- do.call(bind_rows, c(lapply(robustness_names2,read.csv))) #read and bind dfs into one large df
 
 endOwnSD_df <- robustness_df %>% group_by(TL, TGS, prejudice) %>% summarise_all(funs(sd(endOwnMu)))
@@ -235,7 +235,7 @@ quantile(endOutSD_df$X,probs=c(0,1))
 ```
 
 ```{r third condition with personalized interactions}
-interaction_names <- list.files(pattern = "int_plot.csv$") #make list of df-names
+interaction_names <- list.files(path = "SimulationData", pattern = "int_plot.csv$") #make list of df-names
 interaction_df <- do.call(bind_rows, c(lapply(interaction_names,read.csv), .id = "nInteractions")) #read and bind dfs into one large df
 interaction_df <- interaction_df %>% filter(step < 20000)
 interaction_df_long <- gather(interaction_df, bias, cr, own:out) #turn df into long-format
@@ -260,7 +260,7 @@ interaction_df_long %>% ggplot(aes(x = step, y = unsig_cr, colour = group)) + #p
 ```
 
 ```{r variable changes 2, message = FALSE, warning = FALSE}
-variables_df2 <- read.csv("meta2.csv") #read data
+variables_df2 <- read.csv("SimulationData/meta2.csv") #read data
 variables_df2 <- variables_df2 %>% mutate( #make three dimensions into factors
     mu = as.factor(mu),
     sigma = as.factor(sigma),
